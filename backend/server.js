@@ -44,7 +44,7 @@ const studentSchema = new mongoose.Schema({
   gender: { type: String, enum: ['Male', 'Female'] },
   admissionNo: String,
   password: String,          // bcrypt hash
-  initialPassword: String,   // shown once to admin, never used for login after change
+  //initialPassword: String,   // shown once to admin, never used for login after change
   status: { type: String, enum: ['active', 'suspended'], default: 'active' }
 }, { timestamps: true });
 
@@ -54,7 +54,7 @@ const teacherSchema = new mongoose.Schema({
   phone: String,
   teacherId: { type: String, unique: true },
   password: String,          // bcrypt hash
-  initialPassword: String,   // shown once to admin
+  //initialPassword: String,   // shown once to admin
   status: { type: String, enum: ['active', 'suspended'], default: 'active' },
   assignedClasses: [classAssignmentSchema],
   classTeacherOf: [String]   // classNames this teacher is the homeroom/class teacher for
@@ -108,7 +108,17 @@ const TERMS = ['1st Term', '2nd Term', '3rd Term'];
 
 // ---------- Helpers ----------
 function genId(prefix, n) { return prefix + '-' + new Date().getFullYear() + '-' + String(n).padStart(4, '0'); }
-function genPassword() { return Math.random().toString(36).slice(2, 6).toUpperCase() + Math.floor(1000 + Math.random() * 9000); }
+
+
+const crypto = require('crypto');
+
+function genPassword() {
+  const letters = crypto.randomBytes(3).toString('hex').toUpperCase();
+  const numbers = crypto.randomInt(1000, 10000);
+  return letters + numbers;
+}
+
+
 async function nextId(Model, prefix) { const count = await Model.countDocuments(); return genId(prefix, count + 1); }
 async function getSettings() { let s = await Settings.findOne({ key: 'portal' }); if (!s) s = await Settings.create({ key: 'portal', resultPortalOpen: true, teacherPortalOpen: true }); return s; }
 const cleanId = v => String(v || '').trim().toUpperCase();
@@ -196,13 +206,13 @@ app.get('/api/admin/stats', auth('admin'), async (req, res) => res.json({
 }));
 
 app.get('/api/admin/teachers', auth('admin'), async (req, res) =>
-  res.json(await Teacher.find().select('name email phone teacherId initialPassword status assignedClasses classTeacherOf createdAt').sort({ createdAt: -1 })));
+  res.json(await Teacher.find().select('name email phone teacherId status assignedClasses classTeacherOf createdAt').sort({ createdAt: -1 })));
 
 app.post('/api/admin/teachers', auth('admin'), async (req, res) => {
   const pw = genPassword();
   const t = await Teacher.create({
     name: req.body.name, email: req.body.email, phone: req.body.phone, teacherId: await nextId(Teacher, 'TCH'),
-    password: await bcrypt.hash(pw, 10), initialPassword: pw,
+    password: await bcrypt.hash(pw, 10),
     assignedClasses: (req.body.className && req.body.subject) ? [{ className: req.body.className, subject: req.body.subject }] : []
   });
   res.json({ message: 'Teacher created. Give the teacher the generated ID and password — it stays their password.', teacher: { name: t.name, teacherId: t.teacherId, initialPassword: pw } });
@@ -282,14 +292,15 @@ app.delete('/api/admin/students/:id', auth('admin'), async (req, res) => {
 });
 
 app.get('/api/admin/students', auth('admin'), async (req, res) =>
-  res.json(await Student.find().select('name studentId className gender admissionNo initialPassword status createdAt').sort({ createdAt: -1 })));
+  res.json(await Student.find().select('name studentId className gender admissionNo status createdAt').sort({ createdAt: -1 })));
 
 app.post('/api/admin/students', auth('admin'), async (req, res) => {
   const pw = genPassword();
   const s = await Student.create({
     name: req.body.name, className: req.body.className, gender: req.body.gender || undefined,
     admissionNo: req.body.admissionNo || undefined,
-    studentId: await nextId(Student, 'DUR'), password: await bcrypt.hash(pw, 10), initialPassword: pw
+    studentId: await nextId(Student, 'DUR'),
+    password: await bcrypt.hash(pw, 10)
   });
   res.json({ message: 'Student created. Give the student the generated ID and first password.', student: { name: s.name, studentId: s.studentId, initialPassword: pw } });
 });
@@ -491,7 +502,7 @@ app.get('/api/results/:id', auth('student'), async (req, res) => {
 app.use((err, req, res, next) => {
   console.error(err);
   if (res.headersSent) return next(err);
-  res.status(500).json({ message: 'Server error: ' + (err.code === 11000 ? 'that record already exists.' : err.message) });
+  res.status(500).json({ message: 'Internal server error.' });
 });
 process.on('unhandledRejection', e => console.error('Unhandled rejection:', e));
 
