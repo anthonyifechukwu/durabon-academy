@@ -15,8 +15,9 @@
 (function () {
   const isLocal = ['localhost', '127.0.0.1', ''].includes(window.location.hostname);
 
-  // hosted:
-  window.API_BASE = isLocal ? 'http://localhost:5000/api' : '/api';
+  window.API_BASE = isLocal
+    ? 'http://localhost:5000/api'
+    : 'https://durabon-academy.onrender.com/api';
 
   // Example for a separately hosted backend:
   // window.API_BASE = 'https://your-backend.onrender.com/api';
