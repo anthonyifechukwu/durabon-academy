@@ -1,0 +1,27 @@
+<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Teacher Dashboard | DURABON</title>
+<link rel="stylesheet" href="../css/styles.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/aos/2.3.4/aos.css">
+<link rel="stylesheet" href="../css/enhance.css">
+</head>
+<body><header class="header"><a class="brand" href="../index.html"><span class="logo">DA</span><span><b>DURABON</b><small>ACADEMY</small></span></a><a class="gold-pill" href="#" id="logout">Log Out</a></header>
+<main class="section"><p class="kicker">TEACHER PORTAL</p><h1 id="welcome">Teacher Dashboard</h1>
+<div class="cards four" style="margin-top:30px">
+  <article class="tilt" data-aos="fade-up"><b>Assigned Classes</b><div id="classes">Loading…</div><a class="btn gold" href="scores.html" style="margin-top:14px;display:inline-block">Enter Scores →</a></article>
+  <article class="tilt" data-aos="fade-up" data-aos-delay="80"><b>Messages</b><p style="font-size:13px;color:var(--muted)">Notes from the school office.</p><a class="btn outline dark" href="messages.html" style="margin-top:14px;display:inline-block">View Messages →</a></article>
+</div>
+</main>
+<script src="../js/config.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/aos/2.3.4/aos.js"></script>
+<script src="../js/app.js"></script>
+<script>
+if (!localStorage.getItem('teacherToken')) location.href = 'login.html';
+logout.addEventListener('click', e => { e.preventDefault(); Durabon.logout('teacherToken', 'teacher', 'login.html'); });
+
+Durabon.api('/teacher/me', { tokenKey: 'teacherToken' }).then(t => {
+  welcome.textContent = 'Welcome, ' + t.name;
+  classes.innerHTML = (t.assignedClasses || []).length
+    ? t.assignedClasses.map(a => `<div>${a.className} · ${a.subject}</div>`).join('')
+    : '<p style="color:var(--muted);font-size:13px">No classes assigned yet — contact the admin.</p>';
+}).catch(() => location.href = 'login.html');
+</script>
+</body></html>

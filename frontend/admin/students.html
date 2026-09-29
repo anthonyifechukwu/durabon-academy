@@ -1,0 +1,92 @@
+<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Students | DURABON</title>
+<link rel="stylesheet" href="../css/styles.css">
+<link rel="stylesheet" href="../css/update v0.0.1.css">
+<link rel="stylesheet" href="../css/enhance.css">
+</head>
+<body><header class="header"><a class="brand" href="../index.html"><span class="logo">DA</span><span><b>DURABON</b><small>ADMIN</small></span></a><a class="gold-pill" href="dashboard.html">← Dashboard</a></header>
+<main class="section">
+<p class="kicker">STUDENTS</p><h1>Add a student</h1>
+<p>Pick a class, enter the student's name and generate their ID and password.</p>
+
+<div id="classButtons" class="class-grid"></div>
+
+<div id="classPanel" class="class-panel" style="display:none">
+  <h2 id="panelTitle"></h2>
+  <form id="form" style="max-width:560px">
+    <label>Student Name<input id="fullName" required></label>
+    <label>Gender
+      <select id="gender"><option value="">Not specified</option><option>Male</option><option>Female</option></select>
+    </label>
+    <label>Admission No. (optional)<input id="admissionNo" placeholder="e.g. DA/2026/014"></label>
+    <button class="btn gold">Generate ID &amp; Password</button>
+    <p id="out"></p>
+  </form>
+</div>
+
+<h2 style="margin-top:34px" id="listTitle">Students</h2>
+<input class="search-bar" id="search" placeholder="Search students by name, ID or class…">
+<div id="list"></div>
+</main>
+<script src="../js/config.js"></script>
+<script src="../js/classes.js"></script>
+<script src="../js/app.js"></script>
+<script>
+if (!localStorage.getItem('adminToken')) location.href = 'login.html';
+let cache = [], selectedClass = null;
+
+renderClassButtons(classButtons, c => { selectedClass = c; panelTitle.textContent = 'New student — ' + c; classPanel.style.display = 'block'; out.textContent = ''; draw(); });
+
+function draw() {
+  const q = search.value.trim().toLowerCase();
+  const has = (v) => String(v || '').toLowerCase().includes(q);
+  let rows, title;
+  if (q) {                                   // searching looks across every class
+    rows = cache.filter(s => has(s.name) || has(s.studentId) || has(s.className));
+    title = 'Search results';
+  } else if (selectedClass) {                // otherwise only the class that was clicked
+    rows = cache.filter(s => s.className === selectedClass);
+    title = 'Students in ' + selectedClass;
+  } else {
+    listTitle.textContent = 'Students';
+    list.innerHTML = '<p style="color:var(--muted)">Select a class above to see its students, or type in the search box.</p>';
+    return;
+  }
+  listTitle.textContent = title + ' (' + rows.length + ')';
+  list.innerHTML = '<div class="table-wrap" style="overflow:auto"><table class="result-table" style="width:100%;border-collapse:collapse">' +
+    '<tr><th>Name</th><th>Student ID</th><th>Class</th><th>Gender</th><th>Admn No.</th><th>Password</th><th>Status</th><th>Action</th></tr>' +
+    (rows.map(s => `<tr>
+      <td>${s.name || '—'}</td><td>${s.studentId}</td><td>${s.className}</td><td>${s.gender || '—'}</td><td>${s.admissionNo || '—'}</td><td>${s.initialPassword}</td>
+      <td><span class="pill ${s.status}">${s.status}</span></td>
+      <td style="white-space:nowrap">
+        <button class="btn small ${s.status === 'active' ? 'ghost' : 'gold'}" onclick="toggleStatus('${s._id}','${s.status}')">${s.status === 'active' ? 'Suspend' : 'Activate'}</button>
+        <button class="btn small danger" onclick="removeStudent('${s._id}')">Delete</button>
+      </td>
+    </tr>`).join('') || '<tr><td colspan="8">No students found.</td></tr>') + '</table></div>';
+}
+async function load() { cache = await Durabon.api('/admin/students', { tokenKey: 'adminToken' }); draw(); }
+search.addEventListener('input', draw);
+
+async function toggleStatus(id, current) {
+  await Durabon.api(`/admin/students/${id}/status`, { method: 'PATCH', body: { status: current === 'active' ? 'suspended' : 'active' }, tokenKey: 'adminToken' });
+  load();
+}
+
+async function removeStudent(id) {
+  const s = cache.find(x => x._id === id);
+  if (!confirm(`Delete ${s ? (s.name || s.studentId) : 'this student'}? This removes the account and all their scores permanently.`)) return;
+  try { await Durabon.api(`/admin/students/${id}`, { method: 'DELETE', tokenKey: 'adminToken' }); load(); }
+  catch (x) { alert(x.message); }
+}
+
+form.addEventListener('submit', async e => {
+  e.preventDefault();
+  try {
+    const d = await Durabon.api('/admin/students', { method: 'POST', tokenKey: 'adminToken', body: { name: fullName.value, className: selectedClass, gender: gender.value, admissionNo: admissionNo.value } });
+    out.textContent = `${d.student.name} added to ${selectedClass} — ID: ${d.student.studentId} | Password: ${d.student.initialPassword}`;
+    form.reset(); load();
+  } catch (x) { out.textContent = x.message; }
+});
+
+load().catch(() => location.href = 'login.html');
+</script>
+</body></html>

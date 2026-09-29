@@ -1,0 +1,24 @@
+<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Portal Control | DURABON</title>
+<link rel="stylesheet" href="../css/styles.css">
+<link rel="stylesheet" href="../css/enhance.css">
+</head>
+<body><header class="header"><a class="brand" href="../index.html"><span class="logo">DA</span><span><b>DURABON</b><small>ADMIN</small></span></a><a class="gold-pill" href="dashboard.html">← Dashboard</a></header>
+<main class="section"><p class="kicker">PORTAL CONTROL</p><h1>Open or close portals.</h1>
+<div class="cards four" style="margin-top:30px">
+  <article class="tilt"><h3>Result Portal</h3><p id="resultState">Loading...</p><button class="btn gold" onclick="toggle('result')">Toggle</button></article>
+  <article class="tilt"><h3>Teacher Portal</h3><p id="teacherState">Loading...</p><button class="btn gold" onclick="toggle('teacher')">Toggle</button></article>
+</div>
+</main>
+<script src="../js/config.js"></script>
+<script src="../js/app.js"></script>
+<script>
+if (!localStorage.getItem('adminToken')) location.href = 'login.html';
+async function load() {
+  const d = await Durabon.api('/admin/portal', { tokenKey: 'adminToken' });
+  resultState.textContent = d.resultPortalOpen ? 'OPEN' : 'CLOSED';
+  teacherState.textContent = d.teacherPortalOpen ? 'OPEN' : 'CLOSED';
+}
+async function toggle(type) { await Durabon.api('/admin/portal', { method: 'PATCH', body: { type }, tokenKey: 'adminToken' }); load(); }
+load().catch(() => location.href = 'login.html');
+</script>
+</body></html>

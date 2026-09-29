@@ -1,0 +1,91 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Messages | DURABON</title>
+  <link rel="stylesheet" href="../css/styles.css">
+  <link rel="stylesheet" href="../css/enhance.css">
+</head>
+<body>
+<header class="header">
+  <a class="brand" href="../index.html"><span class="logo">DA</span><span><b>DURABON</b><small>ADMIN</small></span></a>
+  <a class="gold-pill" href="dashboard.html">← Dashboard</a>
+</header>
+<main class="section">
+  <p class="kicker">MESSAGES</p>
+  <h1>Send a message</h1>
+
+  <div class="manage-panel" style="max-width:640px">
+    <div class="chip-row" id="toToggle">
+      <button type="button" class="chip gold" data-to="all">All Teachers</button>
+      <button type="button" class="chip subtle" data-to="one">Specific Teacher</button>
+    </div>
+
+    <div id="pickerBox" style="display:none;margin-top:14px"></div>
+
+    <form id="composeForm" style="margin-top:18px">
+      <label>Subject<input id="subject" required></label>
+      <label>Message<textarea id="body" rows="5" required style="padding:11px 14px;border-radius:12px;border:1px solid var(--line);font-family:inherit;font-size:14px"></textarea></label>
+      <button class="btn gold">Send</button>
+      <p id="out"></p>
+    </form>
+  </div>
+
+  <h2 style="margin-top:36px">Sent messages</h2>
+  <div id="log"></div>
+</main>
+<script src="../js/config.js"></script>
+<script src="../js/classes.js"></script>
+<script src="../js/app.js"></script>
+<script>
+if (!localStorage.getItem('adminToken')) location.href = 'login.html';
+let teachers = [], picker, mode = 'all', chosen = null;
+
+toToggle.addEventListener('click', e => {
+  const btn = e.target.closest('button[data-to]'); if (!btn) return;
+  mode = btn.dataset.to;
+  toToggle.querySelectorAll('.chip').forEach(c => c.className = 'chip subtle');
+  btn.className = 'chip gold';
+  pickerBox.style.display = mode === 'one' ? 'block' : 'none';
+});
+
+composeForm.addEventListener('submit', async e => {
+  e.preventDefault();
+  if (mode === 'one' && !(chosen = picker && picker.getSelected())) { out.textContent = 'Pick a teacher first.'; return; }
+  try {
+    const d = await Durabon.api('/admin/messages', {
+      method: 'POST', tokenKey: 'adminToken',
+      body: { teacherId: mode === 'one' ? chosen._id : null, subject: subject.value, body: body.value }
+    });
+    out.textContent = d.message;
+    composeForm.reset();
+    loadLog();
+  } catch (x) { out.textContent = x.message; }
+});
+
+function timeAgo(iso) {
+  const d = new Date(iso);
+  return d.toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' }) + ' · ' + d.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
+}
+
+async function loadLog() {
+  const msgs = await Durabon.api('/admin/messages', { tokenKey: 'adminToken' });
+  log.innerHTML = msgs.map(m => `
+    <div class="teacher-row" style="align-items:flex-start;flex-direction:column;gap:4px">
+      <div style="display:flex;justify-content:space-between;width:100%;gap:10px">
+        <b>${m.subject}</b><small style="color:var(--muted);white-space:nowrap">${timeAgo(m.createdAt)}</small>
+      </div>
+      <span class="pill" style="background:${m.teacherId ? '#eef1f6' : '#fbeee0'};color:${m.teacherId ? '#33475b' : '#9a5b14'}">${m.teacherId ? m.teacherName : 'All Teachers'}</span>
+      <p style="margin:4px 0 0;font-size:13.5px;color:#333">${m.body}</p>
+    </div>`).join('') || '<p style="color:var(--muted)">No messages sent yet.</p>';
+}
+
+Durabon.api('/admin/teachers', { tokenKey: 'adminToken' }).then(t => {
+  teachers = t;
+  picker = createTeacherPicker(pickerBox, teachers, sel => chosen = sel, 'Type a teacher\u2019s name or ID…');
+  loadLog();
+}).catch(() => location.href = 'login.html');
+</script>
+</body>
+</html>

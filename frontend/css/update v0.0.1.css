@@ -1,0 +1,96 @@
+/*===============================
+VIDEO
+===============================*/
+
+.t-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 30px;
+}
+
+.t-grid video {
+    width: 100%;
+}
+
+.t-c-note:nth-child(2), .t-c-note:nth-child(5) {
+    font-weight: 600;
+}
+
+
+.c-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+}
+
+@media (max-width:768px) {
+    .c-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .t-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+.card-tc {
+    padding: 15px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    color: aliceblue;
+}
+
+.card-tc:nth-child(1) {
+    background-color: rgb(251, 251, 85);
+}
+
+.card-tc:nth-child(2) {
+    background-color: rgb(65, 246, 65);
+}
+
+.card-tc:nth-child(3) {
+    background-color: rgb(253, 61, 61);
+}
+
+
+/*============================================
+TEACHER LOGIN
+=============================================*/
+
+.login-body {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 100vh;
+}
+
+.login-card {
+    align-items: center;
+    display: flex;
+    flex-direction: column;
+}
+
+form {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 40px;
+    border: 1px solid #111;
+    padding: 20px;
+    margin-bottom: 20px;
+    border-radius: 30px;
+}
+
+label {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+label input {
+    margin-left: 20px;
+    padding: 10px;
+    border-radius: 20px;
+    border: 1px solid grey;
+}

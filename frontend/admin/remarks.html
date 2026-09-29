@@ -1,0 +1,116 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Remarks | DURABON</title>
+  <link rel="stylesheet" href="../css/styles.css">
+  <link rel="stylesheet" href="../css/update v0.0.1.css">
+<link rel="stylesheet" href="../css/enhance.css">
+</head>
+<body>
+<header class="header">
+  <a class="brand" href="../index.html"><span class="logo">DA</span><span><b>DURABON</b><small>ADMIN</small></span></a>
+  <a class="gold-pill" href="dashboard.html">← Dashboard</a>
+</header>
+<main class="section">
+  <p class="kicker">STUDENT REMARKS</p>
+  <h1>Affective / psychomotor domain &amp; comments</h1>
+  <p>These appear on the student's printable report card alongside their scores.</p>
+
+  <div style="display:flex;gap:14px;flex-wrap:wrap;margin-top:20px">
+    <label style="display:flex;flex-direction:column;gap:8px">Student ID
+      <input id="studentId" placeholder="e.g. DUR-2026-0001" style="padding:11px 14px;border-radius:12px;border:1px solid var(--line)">
+    </label>
+    <label style="display:flex;flex-direction:column;gap:8px">Term
+      <select id="term" style="padding:11px 14px;border-radius:12px;border:1px solid var(--line)">
+        <option>1st Term</option><option>2nd Term</option><option selected>3rd Term</option>
+      </select>
+    </label>
+    <label style="display:flex;flex-direction:column;gap:8px">&nbsp;
+      <button class="btn gold" id="loadBtn" type="button">Load</button>
+    </label>
+  </div>
+  <p id="loadOut" style="margin-top:6px"></p>
+
+  <form id="remarkForm" style="max-width:760px;margin-top:20px;display:none">
+    <h3 style="align-self:flex-start">Affective Domain</h3>
+    <div id="affectiveFields" style="display:grid;grid-template-columns:1fr 1fr;gap:14px;width:100%"></div>
+
+    <h3 style="align-self:flex-start;margin-top:10px">Psychomotor Domain</h3>
+    <div id="psychomotorFields" style="display:grid;grid-template-columns:1fr 1fr;gap:14px;width:100%"></div>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;width:100%;margin-top:10px">
+      <label>No. of Times School Opened<input id="timesSchoolOpened" type="number" min="0"></label>
+      <label>No. of Times Present<input id="timesPresent" type="number" min="0"></label>
+    </div>
+    <label style="width:100%">Next Term Begins<input id="nextTermBegins" placeholder="e.g. 12th January, 2027"></label>
+    <label style="width:100%">Class Teacher's Comment<textarea id="classTeacherComment" rows="2" style="padding:10px;border-radius:12px;border:1px solid var(--line)"></textarea></label>
+    <label style="width:100%">Principal's Comment<textarea id="principalComment" rows="2" style="padding:10px;border-radius:12px;border:1px solid var(--line)"></textarea></label>
+    <button class="btn gold">Save Remarks</button>
+    <p id="saveOut"></p>
+  </form>
+</main>
+<script src="../js/config.js"></script>
+<script src="../js/app.js"></script>
+<script>
+if (!localStorage.getItem('adminToken')) location.href = 'login.html';
+
+const AFFECTIVE = [['attendance','Attendance at Class'],['honesty','Honesty & Obedience'],['leadership','Leadership Role'],['neatness','Neatness (Texts & Notes)'],['perseverance','Perseverance'],['sociability','Sociability']];
+const PSYCHOMOTOR = [['agility','Agility'],['communication','Communication Skills'],['games','Games'],['handlingOfTools','Handling of Tools'],['sports','Sports / Strength']];
+
+function ratingSelect(id) {
+  return `<select id="${id}" style="padding:9px 12px;border-radius:10px;border:1px solid var(--line)">
+    <option value="">—</option><option>N/A</option><option>1</option><option>2</option><option>3</option><option>4</option><option>5</option>
+  </select>`;
+}
+affectiveFields.innerHTML = AFFECTIVE.map(([k,label]) => `<label>${label}${ratingSelect('aff_'+k)}</label>`).join('');
+psychomotorFields.innerHTML = PSYCHOMOTOR.map(([k,label]) => `<label>${label}${ratingSelect('psy_'+k)}</label>`).join('');
+
+let currentStudent = null;
+
+loadBtn.addEventListener('click', async () => {
+  loadOut.textContent = 'Looking up student…';
+  remarkForm.style.display = 'none';
+  try {
+    const students = await Durabon.api('/admin/students', { tokenKey: 'adminToken' });
+    currentStudent = students.find(s => s.studentId === studentId.value.trim());
+    if (!currentStudent) throw new Error('No student found with that Student ID.');
+
+    const remark = await Durabon.api(`/admin/remarks?studentId=${currentStudent._id}&term=${encodeURIComponent(term.value)}`, { tokenKey: 'adminToken' });
+    AFFECTIVE.forEach(([k]) => document.getElementById('aff_'+k).value = remark.affective?.[k] || '');
+    PSYCHOMOTOR.forEach(([k]) => document.getElementById('psy_'+k).value = remark.psychomotor?.[k] || '');
+    timesSchoolOpened.value = remark.timesSchoolOpened ?? '';
+    timesPresent.value = remark.timesPresent ?? '';
+    nextTermBegins.value = remark.nextTermBegins || '';
+    classTeacherComment.value = remark.classTeacherComment || '';
+    principalComment.value = remark.principalComment || '';
+
+    loadOut.textContent = `Editing remarks for ${currentStudent.name} (${currentStudent.className}) — ${term.value}.`;
+    remarkForm.style.display = 'flex';
+    remarkForm.style.flexDirection = 'column';
+    remarkForm.style.gap = '16px';
+    remarkForm.style.alignItems = 'stretch';
+  } catch (x) { loadOut.textContent = x.message; }
+});
+
+remarkForm.addEventListener('submit', async e => {
+  e.preventDefault();
+  if (!currentStudent) return;
+  const affective = {}; AFFECTIVE.forEach(([k]) => affective[k] = document.getElementById('aff_'+k).value);
+  const psychomotor = {}; PSYCHOMOTOR.forEach(([k]) => psychomotor[k] = document.getElementById('psy_'+k).value);
+  try {
+    const d = await Durabon.api('/admin/remarks', {
+      method: 'POST', tokenKey: 'adminToken',
+      body: {
+        studentId: currentStudent._id, term: term.value, affective, psychomotor,
+        timesSchoolOpened: timesSchoolOpened.value || null, timesPresent: timesPresent.value || null,
+        nextTermBegins: nextTermBegins.value, classTeacherComment: classTeacherComment.value, principalComment: principalComment.value
+      }
+    });
+    saveOut.textContent = d.message;
+  } catch (x) { saveOut.textContent = x.message; }
+});
+</script>
+</body>
+</html>
