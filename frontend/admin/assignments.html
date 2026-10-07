@@ -1,0 +1,105 @@
+<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Teacher Assignments | DURABON</title>
+<link rel="stylesheet" href="../css/styles.css">
+<link rel="stylesheet" href="../css/enhance.css">
+</head>
+<body><main class="section">
+<p class="kicker">TEACHER ASSIGNMENTS</p><h1>Classes &amp; subjects</h1>
+<p>Find a teacher, then add or remove classes and subjects with a click — no need to remember any ID.</p>
+
+<div id="pickerBox" style="max-width:480px"></div>
+
+<div id="panel" style="display:none"></div>
+</main>
+<script src="../js/config.js"></script>
+<script src="../js/admin-sidebar.js"></script>
+<script src="../js/classes.js"></script>
+<script src="../js/app.js"></script>
+<script>
+if (!localStorage.getItem('adminToken')) location.href = 'login.html';
+let teachers = [], picker, currentTeacherId = null;
+const api = (path, method, body) => Durabon.api(path, { method, body, tokenKey: 'adminToken' });
+
+async function reload() { teachers = await Durabon.api('/admin/teachers', { tokenKey: 'adminToken' }); picker && picker.setTeachers(teachers); }
+
+function renderPanel(t) {
+  currentTeacherId = t._id;
+  const bySubject = [...new Set((t.assignedClasses || []).map(a => a.subject))];
+  const byClass = [...new Set((t.assignedClasses || []).map(a => a.className))];
+  panel.style.display = 'block';
+  panel.innerHTML = `
+    <div class="manage-panel">
+      <h2>${t.name || t.teacherId}</h2>
+      <p style="margin:-8px 0 0;color:var(--muted);font-size:13px">${t.teacherId}${t.phone ? ' · ' + t.phone : ''}${t.email ? ' · ' + t.email : ''}</p>
+
+      <div class="group-title">Classes &amp; subjects</div>
+      <div class="chip-row" id="pairChips">${(t.assignedClasses || []).map(a =>
+        `<span class="chip">${a.className} · ${a.subject}<button class="x" data-kind="pair" data-class="${a.className}" data-subject="${a.subject}">×</button></span>`
+      ).join('') || '<span style="color:var(--muted);font-size:13px">No classes assigned yet.</span>'}</div>
+
+      <form class="inline-form" id="addForm">
+        <label>Class<select id="addClass"></select></label>
+        <label>Subject<input id="addSubject" placeholder="e.g. Mathematics" required></label>
+        <button class="btn gold small">+ Add</button>
+      </form>
+      <p class="out" id="addOut"></p>
+
+      <div class="group-title">Class teacher of</div>
+      <div class="class-teacher-row">
+        <div class="chip-row" id="ctChips">${(t.classTeacherOf || []).map(c =>
+          `<span class="chip gold">${c}<button class="x" data-kind="ct-remove" data-class="${c}">×</button></span>`
+        ).join('') || '<span style="color:var(--muted);font-size:13px">Not a class teacher yet.</span>'}</div>
+        <select id="ctClass" style="padding:9px 12px;border-radius:10px;border:1px solid var(--line)"></select>
+        <button class="btn outline dark small" id="ctMake">Make Class Teacher</button>
+      </div>
+      <p class="out" id="ctOut"></p>
+
+      ${(byClass.length || bySubject.length) ? `
+      <div class="group-title">Quick bulk removal</div>
+      <div class="chip-row">${byClass.map(c => `<span class="chip subtle">Remove all of ${c}<button class="x" data-kind="class" data-class="${c}">×</button></span>`).join('')}</div>
+      <div class="chip-row">${bySubject.map(s => `<span class="chip subtle">Remove ${s} everywhere<button class="x" data-kind="subject" data-subject="${s}">×</button></span>`).join('')}</div>
+      <p class="out" id="bulkOut"></p>` : ''}
+    </div>`;
+
+  fillClassSelect(document.getElementById('addClass'), false);
+  fillClassSelect(document.getElementById('ctClass'), false);
+
+  document.getElementById('addForm').addEventListener('submit', async e => {
+    e.preventDefault();
+    try {
+      await api(`/admin/teachers/${t._id}/assign`, 'POST', { className: addClass.value, subject: addSubject.value });
+      await refreshPanel(t._id);
+    } catch (x) { addOut.textContent = x.message; }
+  });
+
+  document.getElementById('ctMake').addEventListener('click', async () => {
+    try { await api(`/admin/teachers/${t._id}/class-teacher`, 'PATCH', { className: ctClass.value, make: true }); await refreshPanel(t._id); }
+    catch (x) { ctOut.textContent = x.message; }
+  });
+}
+
+// Attached once — #panel itself is never replaced, only its innerHTML is,
+// so a listener added inside renderPanel would otherwise pile up with
+// every teacher selected and fire the same click several times over.
+panel.addEventListener('click', async e => {
+  const btn = e.target.closest('.x'); if (!btn || !currentTeacherId) return;
+  try {
+    if (btn.dataset.kind === 'pair') await api(`/admin/teachers/${currentTeacherId}/assign`, 'DELETE', { className: btn.dataset.class, subject: btn.dataset.subject });
+    if (btn.dataset.kind === 'ct-remove') await api(`/admin/teachers/${currentTeacherId}/class-teacher`, 'PATCH', { className: btn.dataset.class, make: false });
+    if (btn.dataset.kind === 'class') await api(`/admin/teachers/${currentTeacherId}/remove-class`, 'POST', { className: btn.dataset.class });
+    if (btn.dataset.kind === 'subject') await api(`/admin/teachers/${currentTeacherId}/remove-subject`, 'POST', { subject: btn.dataset.subject });
+    await refreshPanel(currentTeacherId);
+  } catch (x) { alert(x.message); }
+});
+
+async function refreshPanel(id) {
+  await reload();
+  const t = teachers.find(x => x._id === id);
+  if (t) renderPanel(t); else panel.style.display = 'none';
+}
+
+reload().then(() => {
+  picker = createTeacherPicker(pickerBox, teachers, t => { if (t) renderPanel(t); else panel.style.display = 'none'; }, 'Type a teacher\u2019s name or ID to manage…');
+}).catch(() => location.href = 'login.html');
+</script>
+<script>mountAdminSidebar('assignments.html');</script>
+</body></html>

@@ -1,0 +1,94 @@
+<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Students | DURABON</title>
+<link rel="stylesheet" href="../css/styles.css">
+<link rel="stylesheet" href="../css/update v0.0.1.css">
+<link rel="stylesheet" href="../css/enhance.css">
+</head>
+<body><main class="section">
+<p class="kicker">STUDENTS</p><h1>Add a student</h1>
+
+<form id="form" class="inline-form" style="margin-top:20px">
+  <label>Class<select id="className" required></select></label>
+  <label>Student Name<input id="fullName" placeholder="Student name" required></label>
+  <label>Gender
+    <select id="gender"><option value="">Select gender</option><option>Male</option><option>Female</option></select>
+  </label>
+  <label>Admission No.<input id="admissionNo" placeholder="Admission No. (optional)"></label>
+  <button class="btn gold">Generate</button>
+</form>
+<p id="out"></p>
+
+<h2 style="margin-top:34px" id="listTitle">Students</h2>
+<div class="cards four" id="statCards" style="margin:14px 0 20px">
+  <article class="tilt" data-aos="fade-up"><b>Students</b><h3 id="statTotal">—</h3></article>
+  <article class="tilt" data-aos="fade-up"><b style="color:#1c7a3c">Active</b><h3 id="statActive" style="color:#1c7a3c">—</h3></article>
+  <article class="tilt" data-aos="fade-up"><b style="color:#b3311c">Suspended</b><h3 id="statSuspended" style="color:#b3311c">—</h3></article>
+</div>
+<div style="display:flex;gap:14px;flex-wrap:wrap;align-items:flex-end;margin:12px 0">
+  <label style="display:flex;flex-direction:column;gap:6px;font-size:12.5px;font-weight:600">Filter by class
+    <select id="classFilter" style="padding:10px 13px;border-radius:10px;border:1px solid var(--line);min-width:180px"></select>
+  </label>
+  <input class="search-bar" id="search" placeholder="Search students by name, ID or class…" style="margin:0;flex:1;min-width:220px">
+</div>
+<div id="list"></div>
+</main>
+<script src="../js/config.js"></script>
+<script src="../js/admin-sidebar.js"></script>
+<script src="../js/classes.js"></script>
+<script src="../js/app.js"></script>
+<script>
+if (!localStorage.getItem('adminToken')) location.href = 'login.html';
+let cache = [];
+fillClassSelect(className, true);
+fillClassSelect(classFilter, true);
+classFilter.options[0].textContent = 'All classes';
+
+function draw() {
+  const q = search.value.trim().toLowerCase();
+  const cls = classFilter.value;
+  const inClass = cache.filter(s => !cls || s.className === cls);
+  statTotal.textContent = inClass.length;
+  statActive.textContent = inClass.filter(s => s.status === 'active').length;
+  statSuspended.textContent = inClass.filter(s => s.status === 'suspended').length;
+  listTitle.textContent = cls ? `Students — ${cls}` : 'Students';
+
+  const rows = inClass.filter(s => !q || (s.name || '').toLowerCase().includes(q) || s.studentId.toLowerCase().includes(q) || (s.className || '').toLowerCase().includes(q));
+  list.innerHTML = '<div class="table-wrap" style="overflow:auto"><table class="result-table" style="width:100%;border-collapse:collapse">' +
+    '<tr><th>Name</th><th>Student ID</th><th>Class</th><th>Gender</th><th>Admn No.</th><th>Password</th><th>Status</th><th>Action</th></tr>' +
+    (rows.map(s => `<tr>
+      <td>${s.name || '—'}</td><td>${s.studentId}</td><td>${s.className}</td><td>${s.gender || '—'}</td><td>${s.admissionNo || '—'}</td><td>${s.initialPassword}</td>
+      <td><span class="pill ${s.status}">${s.status}</span></td>
+      <td style="white-space:nowrap">
+        <button class="btn small ${s.status === 'active' ? 'ghost' : 'gold'}" onclick="toggleStatus('${s._id}','${s.status}')">${s.status === 'active' ? 'Suspend' : 'Activate'}</button>
+        <button class="btn small danger" onclick="removeStudent('${s._id}')">Delete</button>
+      </td>
+    </tr>`).join('') || '<tr><td colspan="8">No students found.</td></tr>') + '</table></div>';
+}
+async function load() { cache = await Durabon.api('/admin/students', { tokenKey: 'adminToken' }); draw(); }
+search.addEventListener('input', draw);
+classFilter.addEventListener('change', draw);
+
+async function toggleStatus(id, current) {
+  await Durabon.api(`/admin/students/${id}/status`, { method: 'PATCH', body: { status: current === 'active' ? 'suspended' : 'active' }, tokenKey: 'adminToken' });
+  load();
+}
+
+async function removeStudent(id) {
+  const s = cache.find(x => x._id === id);
+  if (!confirm(`Delete ${s ? (s.name || s.studentId) : 'this student'}? This removes the account and all their scores permanently.`)) return;
+  try { await Durabon.api(`/admin/students/${id}`, { method: 'DELETE', tokenKey: 'adminToken' }); load(); }
+  catch (x) { alert(x.message); }
+}
+
+form.addEventListener('submit', async e => {
+  e.preventDefault();
+  try {
+    const d = await Durabon.api('/admin/students', { method: 'POST', tokenKey: 'adminToken', body: { name: fullName.value, className: className.value, gender: gender.value, admissionNo: admissionNo.value } });
+    out.textContent = `${d.student.name} added to ${className.value} — ID: ${d.student.studentId} | Password: ${d.student.initialPassword}`;
+    form.reset(); load();
+  } catch (x) { out.textContent = x.message; }
+});
+
+load().catch(() => location.href = 'login.html');
+</script>
+<script>mountAdminSidebar('students.html');</script>
+</body></html>

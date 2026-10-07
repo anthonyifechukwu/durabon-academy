@@ -1,0 +1,117 @@
+<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Results | DURABON</title>
+<link rel="stylesheet" href="../css/styles.css">
+<link rel="stylesheet" href="../css/enhance.css">
+</head><body><main class="section">
+<p class="kicker">RESULT REVIEW</p>
+<h1 id="pageTitle">Submitted results</h1>
+<p class="muted" id="pageSub" style="margin-top:6px">Click a class to see every score submitted for it.</p>
+
+<div style="display:flex;gap:14px;flex-wrap:wrap;align-items:flex-end;margin:20px 0" id="classView">
+  <label style="display:flex;flex-direction:column;gap:6px;font-size:12.5px;font-weight:600;flex:1;min-width:220px">Search classes
+    <input class="search-bar" id="classSearch" placeholder="Search by class name…" style="margin:0">
+  </label>
+</div>
+
+<div class="cards three" id="classGrid" style="margin:14px 0 20px"></div>
+
+<div id="detailView" hidden>
+  <button class="btn ghost small" id="backBtn" type="button" style="margin-bottom:14px">&larr; All classes</button>
+  <div style="display:flex;gap:14px;flex-wrap:wrap;align-items:flex-end;margin:0 0 16px">
+    <label style="display:flex;flex-direction:column;gap:6px;font-size:12.5px;font-weight:600">Filter by term
+      <select id="termFilter" style="padding:10px 13px;border-radius:10px;border:1px solid var(--line);min-width:160px">
+        <option value="">All terms</option>
+        <option>1st Term</option><option>2nd Term</option><option>3rd Term</option>
+      </select>
+    </label>
+    <input class="search-bar" id="detailSearch" placeholder="Search by student, subject or ID…" style="margin:0;flex:1;min-width:220px">
+  </div>
+  <div id="detailTable"></div>
+</div>
+
+<p id="out" class="muted"></p>
+</main>
+<script src="../js/config.js"></script>
+<script src="../js/admin-sidebar.js"></script>
+<script src="../js/app.js"></script>
+<script>
+if (!localStorage.getItem('adminToken')) location.href = 'login.html';
+
+let scores = [];
+let activeClass = null;
+
+function summarize() {
+  const byClass = {};
+  scores.forEach(s => {
+    if (!byClass[s.className]) byClass[s.className] = { className: s.className, count: 0, students: new Set(), subjects: new Set(), terms: new Set() };
+    const c = byClass[s.className];
+    c.count++;
+    c.students.add(s.studentId);
+    c.subjects.add(s.subject);
+    c.terms.add(s.term);
+  });
+  return Object.values(byClass).sort((a, b) => a.className.localeCompare(b.className));
+}
+
+function drawGrid() {
+  const q = classSearch.value.trim().toLowerCase();
+  const summary = summarize().filter(c => !q || c.className.toLowerCase().includes(q));
+  classGrid.innerHTML = summary.map(c => `
+    <article class="tilt card-btn" data-aos="fade-up" data-class="${c.className}" style="cursor:pointer">
+      <b>${c.className}</b>
+      <h3>${c.count}</h3>
+      <small>${c.count === 1 ? 'score' : 'scores'} · ${c.students.size} student${c.students.size === 1 ? '' : 's'} · ${c.subjects.size} subject${c.subjects.size === 1 ? '' : 's'}</small>
+    </article>`).join('') || '<p class="muted">No results submitted yet.</p>';
+  classGrid.querySelectorAll('[data-class]').forEach(el => el.addEventListener('click', () => openClass(el.dataset.class)));
+}
+
+function openClass(cls) {
+  activeClass = cls;
+  pageTitle.textContent = `Submitted results — ${cls}`;
+  pageSub.textContent = 'All subject scores submitted for this class.';
+  // classView/classGrid carry their own display:flex/grid (inline style and
+  // the .cards class), which beats the plain `hidden` attribute — so hide
+  // them with an explicit style.display instead of relying on .hidden.
+  classView.style.display = 'none';
+  classGrid.style.display = 'none';
+  detailView.hidden = false;
+  termFilter.value = '';
+  detailSearch.value = '';
+  drawDetail();
+}
+
+function closeClass() {
+  activeClass = null;
+  pageTitle.textContent = 'Submitted results';
+  pageSub.textContent = 'Click a class to see every score submitted for it.';
+  classView.style.display = 'flex';
+  classGrid.style.display = 'grid';
+  detailView.hidden = true;
+}
+
+function drawDetail() {
+  const term = termFilter.value;
+  const q = detailSearch.value.trim().toLowerCase();
+  const rows = scores.filter(s => s.className === activeClass)
+    .filter(s => !term || s.term === term)
+    .filter(s => !q || (s.studentName || '').toLowerCase().includes(q) || (s.subject || '').toLowerCase().includes(q) || (s.studentId || '').toLowerCase().includes(q))
+    .sort((a, b) => (a.studentName || '').localeCompare(b.studentName || '') || (a.subject || '').localeCompare(b.subject || ''));
+
+  detailTable.innerHTML = '<div class="table-wrap" style="overflow:auto"><table class="result-table" style="width:100%;border-collapse:collapse">' +
+    '<tr><th>Student</th><th>Student ID</th><th>Subject</th><th>Term</th><th>CA1</th><th>CA2</th><th>Exam</th><th>Total</th></tr>' +
+    (rows.map(x => `<tr><td>${x.studentName || '—'}</td><td>${x.studentId || '—'}</td><td>${x.subject}</td><td>${x.term}</td><td>${x.ca1}</td><td>${x.ca2}</td><td>${x.exam}</td><td><b>${x.total}</b></td></tr>`).join('')
+      || '<tr><td colspan="8">No scores match.</td></tr>') +
+    '</table></div>';
+}
+
+backBtn.addEventListener('click', closeClass);
+classSearch.addEventListener('input', drawGrid);
+termFilter.addEventListener('change', drawDetail);
+detailSearch.addEventListener('input', drawDetail);
+
+Durabon.api('/admin/results', { tokenKey: 'adminToken' }).then(d => {
+  scores = d;
+  drawGrid();
+}).catch(() => location.href = 'login.html');
+</script>
+<script>mountAdminSidebar('results.html');</script>
+</body></html>

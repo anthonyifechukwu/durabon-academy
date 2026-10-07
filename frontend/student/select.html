@@ -1,0 +1,44 @@
+<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Check Result | DURABON</title>
+<link rel="stylesheet" href="../css/styles.css">
+<link rel="stylesheet" href="../css/update v0.0.1.css">
+<link rel="stylesheet" href="../css/enhance.css">
+</head>
+<body class="login-body"><main class="login-card" style="max-width:520px">
+<a class="brand dark-brand" href="../index.html"><span class="logo">DA</span><span><b>DURABON</b><small>ACADEMY</small></span></a>
+<p class="kicker">STUDENT RESULT PORTAL</p>
+
+<section id="stepTerm">
+  <h1>Select term.</h1>
+  <div class="class-grid" id="termButtons"></div>
+</section>
+
+<section id="stepClass" style="display:none">
+  <h1>Select class.</h1>
+  <p id="chosenTerm"></p>
+  <div class="class-grid" id="classButtons"></div>
+  <a class="back" href="#" id="backToTerm">← Change term</a>
+</section>
+
+<a class="back" href="../index.html">← Back to website</a>
+</main>
+<script src="../js/config.js"></script>
+<script src="../js/classes.js"></script>
+<script src="../js/app.js"></script>
+<script>
+let term = null;
+const TERMS = ['1st Term', '2nd Term', '3rd Term'];
+termButtons.innerHTML = TERMS.map(t => `<button type="button" class="class-btn" data-term="${t}">${t}</button>`).join('');
+termButtons.querySelectorAll('button').forEach(b => b.addEventListener('click', () => {
+  term = b.dataset.term;
+  chosenTerm.textContent = term;
+  stepTerm.style.display = 'none';
+  stepClass.style.display = 'block';
+}));
+backToTerm.addEventListener('click', e => { e.preventDefault(); stepClass.style.display = 'none'; stepTerm.style.display = 'block'; });
+
+renderClassButtons(classButtons, className => {
+  sessionStorage.setItem('resultSelection', JSON.stringify({ term, className }));
+  location.href = 'login.html';
+});
+</script>
+</body></html>

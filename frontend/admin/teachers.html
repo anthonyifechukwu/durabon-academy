@@ -1,0 +1,99 @@
+<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Teachers | DURABON</title>
+<link rel="stylesheet" href="../css/styles.css">
+<link rel="stylesheet" href="../css/update v0.0.1.css">
+<link rel="stylesheet" href="../css/enhance.css">
+</head>
+<body><main class="section">
+<p class="kicker">TEACHERS</p><h1>Add a teacher</h1>
+<p>To give an existing teacher more classes or subjects, set class teachers, or remove a subject or class, use <a href="assignments.html" style="color:var(--gold);font-weight:700">Teacher assignments →</a></p>
+
+<form id="addForm" class="inline-form" style="margin-top:20px">
+  <label>Class<select id="className" required></select></label>
+  <label>Teacher Name<input id="fullName" placeholder="Teacher name" required></label>
+  <label>Subject<input id="subject" placeholder="e.g. Mathematics" required></label>
+  <label>Phone Number<input id="phone" type="tel" placeholder="e.g. 08012345678" required></label>
+  <label>Email<input id="email" type="email" placeholder="Email (optional)"></label>
+  <button class="btn gold">Add Teacher</button>
+</form>
+<p id="addOut"></p>
+
+<h2 style="margin-top:34px" id="listTitle">Teachers</h2>
+<div class="cards four" id="statCards" style="margin:14px 0 20px">
+  <article class="tilt" data-aos="fade-up"><b>Teachers</b><h3 id="statTotal">—</h3></article>
+  <article class="tilt" data-aos="fade-up"><b style="color:#1c7a3c">Active</b><h3 id="statActive" style="color:#1c7a3c">—</h3></article>
+  <article class="tilt" data-aos="fade-up"><b style="color:#b3311c">Suspended</b><h3 id="statSuspended" style="color:#b3311c">—</h3></article>
+</div>
+<div style="display:flex;gap:14px;flex-wrap:wrap;align-items:flex-end;margin:12px 0">
+  <label style="display:flex;flex-direction:column;gap:6px;font-size:12.5px;font-weight:600">Filter by class
+    <select id="classFilter" style="padding:10px 13px;border-radius:10px;border:1px solid var(--line);min-width:180px"></select>
+  </label>
+  <input class="search-bar" id="search" placeholder="Search teachers by name, ID, class or subject…" style="margin:0;flex:1;min-width:220px">
+</div>
+<div id="list"></div>
+</main>
+<script src="../js/config.js"></script>
+<script src="../js/admin-sidebar.js"></script>
+<script src="../js/classes.js"></script>
+<script src="../js/app.js"></script>
+<script>
+if (!localStorage.getItem('adminToken')) location.href = 'login.html';
+let teacherCache = [];
+fillClassSelect(className, true);
+fillClassSelect(classFilter, true);
+classFilter.options[0].textContent = 'All classes';
+const inClassFn = (t, cls) => !cls || (t.assignedClasses || []).some(a => a.className === cls) || (t.classTeacherOf || []).includes(cls);
+
+function draw() {
+  const q = search.value.trim().toLowerCase();
+  const cls = classFilter.value;
+  const has = (v) => String(v || '').toLowerCase().includes(q);
+  const inClass = teacherCache.filter(t => inClassFn(t, cls));
+  statTotal.textContent = inClass.length;
+  statActive.textContent = inClass.filter(t => t.status === 'active').length;
+  statSuspended.textContent = inClass.filter(t => t.status === 'suspended').length;
+  listTitle.textContent = cls ? `Teachers — ${cls}` : 'Teachers';
+
+  const rows = inClass.filter(t => !q || has(t.name) || has(t.teacherId) || (t.assignedClasses || []).some(a => has(a.className) || has(a.subject)));
+  list.innerHTML = '<div class="table-wrap" style="overflow:auto"><table class="result-table" style="width:100%;border-collapse:collapse">' +
+    '<tr><th>Name</th><th>Teacher ID</th><th>Phone</th><th>Email</th><th>Password</th><th>Classes &amp; Subjects</th><th>Class Teacher Of</th><th>Status</th><th>Action</th></tr>' +
+    (rows.map(t => `<tr>
+      <td>${t.name || '—'}</td><td>${t.teacherId}</td><td>${t.phone || '—'}</td><td>${t.email || '—'}</td><td>${t.initialPassword}</td>
+      <td>${(t.assignedClasses || []).map(a => `${a.className} · ${a.subject}`).join('<br>') || '—'}</td>
+      <td>${(t.classTeacherOf || []).join(', ') || '—'}</td>
+      <td><span class="pill ${t.status}">${t.status}</span></td>
+      <td style="white-space:nowrap">
+        <button class="btn small ${t.status === 'active' ? 'ghost' : 'gold'}" onclick="toggleStatus('${t._id}','${t.status}')">${t.status === 'active' ? 'Suspend' : 'Activate'}</button>
+        <button class="btn small danger" onclick="removeTeacher('${t._id}')">Delete</button>
+      </td>
+    </tr>`).join('') || '<tr><td colspan="9">No teachers found.</td></tr>') + '</table></div>';
+}
+
+async function load() { teacherCache = await Durabon.api('/admin/teachers', { tokenKey: 'adminToken' }); draw(); }
+search.addEventListener('input', draw);
+classFilter.addEventListener('change', draw);
+
+async function toggleStatus(id, current) {
+  await Durabon.api(`/admin/teachers/${id}/status`, { method: 'PATCH', body: { status: current === 'active' ? 'suspended' : 'active' }, tokenKey: 'adminToken' });
+  load();
+}
+
+async function removeTeacher(id) {
+  const t = teacherCache.find(x => x._id === id);
+  if (!confirm(`Delete ${t ? (t.name || t.teacherId) : 'this teacher'}? This removes the account permanently.`)) return;
+  try { await Durabon.api(`/admin/teachers/${id}`, { method: 'DELETE', tokenKey: 'adminToken' }); load(); }
+  catch (x) { alert(x.message); }
+}
+
+addForm.addEventListener('submit', async e => {
+  e.preventDefault();
+  try {
+    const d = await Durabon.api('/admin/teachers', { method: 'POST', tokenKey: 'adminToken', body: { name: fullName.value, email: email.value, phone: phone.value, className: className.value, subject: subject.value } });
+    addOut.textContent = `${d.teacher.name} added to ${className.value} — ID: ${d.teacher.teacherId} | Password: ${d.teacher.initialPassword}`;
+    addForm.reset(); load();
+  } catch (x) { addOut.textContent = x.message; }
+});
+
+load().catch(() => location.href = 'login.html');
+</script>
+<script>mountAdminSidebar('teachers.html');</script>
+</body></html>

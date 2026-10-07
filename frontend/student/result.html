@@ -1,0 +1,201 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>My Result | DURABON</title>
+<link rel="stylesheet" href="../css/styles.css">
+<link rel="stylesheet" href="../css/enhance.css">
+<link rel="stylesheet" href="../css/report.css">
+</head>
+<body>
+<header class="header">
+  <a class="brand" href="../index.html"><span class="logo">DA</span><span><b>DURABON</b><small>ACADEMY</small></span></a>
+  <a class="gold-pill" href="#" id="logout">Log Out</a>
+</header>
+
+<div class="report-toolbar">
+  <div class="switcher">
+    <label>Term:
+      <select id="termSwitch">
+        <option>1st Term</option><option>2nd Term</option><option>3rd Term</option>
+      </select>
+    </label>
+  </div>
+  <div class="actions">
+    <button class="btn outline dark" id="printBtn">Print</button>
+    <button class="btn gold" id="downloadBtn">Download as PDF</button>
+  </div>
+</div>
+
+<p id="statusMsg" style="text-align:center;margin-top:30px"></p>
+
+<main id="sheet" class="report-sheet" style="display:none">
+  <div class="report-head">
+    <div class="logo-badge">DA</div>
+    <div>
+      <h1>DURABON Academy</h1>
+      <p>Idumu Agba Quarter, Egbеле, Uromi, Edo State.</p>
+      <p><em>“Rest Not A Moment From Learning”</em></p>
+    </div>
+  </div>
+
+  <div class="report-title">
+    <h2 id="reportTitle">TERM ASSESSMENT REPORT</h2>
+    <span id="reportSession"></span>
+  </div>
+
+  <div class="report-meta">
+    <div><span>Name: </span><b id="mName"></b></div>
+    <div><span>Class: </span><b id="mClass"></b></div>
+    <div><span>Sex: </span><b id="mGender"></b></div>
+    <div><span>Class Teacher: </span><b id="mClassTeacher"></b></div>
+    <div><span>Student ID: </span><b id="mStudentId"></b></div>
+    <div><span>Hall of Residence: </span><b>Day Student</b></div>
+    <div><span>Admn No: </span><b id="mAdmn"></b></div>
+    <div><span>Next Term Begins: </span><b id="mNextTerm">—</b></div>
+    <div><span>No. of Times School Opened: </span><b id="mOpened">—</b></div>
+    <div><span>No. of Times Present: </span><b id="mPresent">—</b></div>
+  </div>
+
+  <h3 style="margin:0 0 6px">Cognitive Domain</h3>
+  <div style="overflow:auto">
+    <table class="report-table" id="cogTable"><thead></thead><tbody></tbody></table>
+  </div>
+  <p class="report-legend">
+    <b>Interpretation:</b> A1: EXCELLENT (75.00–100.00) &nbsp; B2: VERY GOOD (70.00–74.99) &nbsp; B3: GOOD (65.00–69.99) &nbsp;
+    C4: CREDIT (60.00–64.99) &nbsp; C5: CREDIT (55.00–59.99) &nbsp; C6: CREDIT (50.00–54.99) &nbsp;
+    D7: PASS (45.00–49.99) &nbsp; E8: PASS (40.00–44.99) &nbsp; F9: FAIL (0.00–39.99)
+  </p>
+
+  <div class="domain-grid">
+    <div class="domain-block">
+      <h4>Affective Domain <small style="color:#777;font-weight:400">(Values, interests, attributes and character)</small></h4>
+      <table><thead><tr><th>Behaviour</th><th>Value</th></tr></thead><tbody id="affectiveBody"></tbody></table>
+    </div>
+    <div class="domain-block">
+      <h4>Psychomotor Domain <small style="color:#777;font-weight:400">(Manual &amp; physical skills)</small></h4>
+      <table><thead><tr><th>Skill</th><th>Value</th></tr></thead><tbody id="psychomotorBody"></tbody></table>
+    </div>
+  </div>
+  <p class="domain-interpretation"><b>Interpretation:</b> 1: Poor &nbsp; 2: Needs to Improve &nbsp; 3: Good &nbsp; 4: Very Good &nbsp; 5: Excellent &nbsp; N/A: Not Applicable</p>
+
+  <div class="report-summary">
+    <div class="stat">No. of Subjects in Good Standing (GS) <b id="sGs">—</b></div>
+    <div class="stat">No. Not in Good Standing (NGS) <b id="sNgs">—</b></div>
+    <div class="stat">Total Score <b id="sTotal">—</b></div>
+    <div class="stat">Average <b id="sAvg">—</b></div>
+    <div class="stat">Grade <b id="sGrade">—</b></div>
+  </div>
+
+  <div class="report-comments">
+    <div class="box">
+      <b>Class Teacher's Comment</b><span id="cTeacherComment">—</span>
+      <div class="signature"><span class="sig" id="cTeacherSig">DURABON</span><div style="font-size:10px;color:#777;margin-top:4px">Class Teacher's Signature</div></div>
+    </div>
+    <div class="box">
+      <b>Principal's Comment</b><span id="cPrincipalComment">—</span>
+      <div class="signature"><span class="sig">DURABON</span><div style="font-size:10px;color:#777;margin-top:4px">Principal's Signature</div></div>
+    </div>
+  </div>
+</main>
+
+<script src="../js/config.js"></script>
+<script src="../js/app.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script>
+const student = JSON.parse(localStorage.getItem('student') || 'null');
+const token = localStorage.getItem('studentToken');
+if (!student || !token) location.href = 'login.html';
+
+logout.addEventListener('click', e => { e.preventDefault(); Durabon.logout('studentToken', 'student', 'login.html'); });
+
+const params = new URLSearchParams(location.search);
+let currentTerm = params.get('term') || localStorage.getItem('resultTerm') || '3rd Term';
+termSwitch.value = currentTerm;
+
+const AFFECTIVE = [['attendance','Attendance at Class'],['honesty','Honesty & Obedience'],['leadership','Leadership Role'],['neatness','Neatness (Texts & Notes)'],['perseverance','Perseverance'],['sociability','Sociability']];
+const PSYCHOMOTOR = [['agility','Agility'],['communication','Communication Skills'],['games','Games'],['handlingOfTools','Handling of Tools'],['sports','Sports / Strength']];
+
+async function loadResult(term) {
+  statusMsg.textContent = 'Loading result…';
+  sheet.style.display = 'none';
+  try {
+    const d = await Durabon.api(`/results/${student._id}?term=${encodeURIComponent(term)}`, { tokenKey: 'studentToken' });
+    render(d);
+    statusMsg.textContent = '';
+    sheet.style.display = 'block';
+    localStorage.setItem('resultTerm', term);
+    history.replaceState(null, '', '?term=' + encodeURIComponent(term));
+  } catch (x) {
+    statusMsg.textContent = x.message || 'Could not load your result.';
+  }
+}
+
+function render(d) {
+  reportTitle.textContent = `${d.term.toUpperCase()} ASSESSMENT REPORT`;
+  reportSession.textContent = d.session + ' ACADEMIC SESSION';
+  mName.textContent = d.student.name;
+  mClass.textContent = d.student.className;
+  mGender.textContent = d.student.gender;
+  mClassTeacher.textContent = d.student.classTeacherName;
+  mStudentId.textContent = d.student.studentId;
+  mAdmn.textContent = d.student.admissionNo;
+  mNextTerm.textContent = d.nextTermBegins || '—';
+  mOpened.textContent = d.attendance.timesSchoolOpened ?? '—';
+  mPresent.textContent = d.attendance.timesPresent ?? '—';
+
+  const head = d.isFinalTerm
+    ? '<tr><th>Subjects</th><th>CA1</th><th>CA2</th><th>Exam</th><th>Total</th><th>1st Term</th><th>2nd Term</th><th>3rd Term</th><th>Total</th><th>Cum. Avg</th><th>Subj. Position</th><th>Class Avg.</th><th>Grade</th><th>Comment</th><th>GS/NGS</th></tr>'
+    : '<tr><th>Subjects</th><th>CA1</th><th>CA2</th><th>Exam</th><th>Total</th><th>Subj. Position</th><th>Class Avg.</th><th>Grade</th><th>Comment</th><th>GS/NGS</th></tr>';
+  document.querySelector('#cogTable thead').innerHTML = head;
+
+  document.querySelector('#cogTable tbody').innerHTML = d.rows.map(r => d.isFinalTerm ? `
+    <tr>
+      <td>${r.subject}</td><td>${r.ca1}</td><td>${r.ca2}</td><td>${r.exam}</td><td>${r.total}</td>
+      <td>${r.term1Total ?? '—'}</td><td>${r.term2Total ?? '—'}</td><td>${r.term3Total ?? '—'}</td>
+      <td>${r.cumulativeTotal}</td><td>${r.cumulativeAverage.toFixed(2)}</td>
+      <td>${r.subjectPosition}</td><td>${r.classAverage}</td><td>${r.grade}</td><td>${r.comment}</td><td>${r.gsStatus}</td>
+    </tr>` : `
+    <tr>
+      <td>${r.subject}</td><td>${r.ca1}</td><td>${r.ca2}</td><td>${r.exam}</td><td>${r.total}</td>
+      <td>${r.subjectPosition}</td><td>${r.classAverage}</td><td>${r.grade}</td><td>${r.comment}</td><td>${r.gsStatus}</td>
+    </tr>`).join('');
+
+  affectiveBody.innerHTML = AFFECTIVE.map(([k, label]) => `<tr><td>${label}</td><td>${d.affective?.[k] || '—'}</td></tr>`).join('');
+  psychomotorBody.innerHTML = PSYCHOMOTOR.map(([k, label]) => `<tr><td>${label}</td><td>${d.psychomotor?.[k] || '—'}</td></tr>`).join('');
+
+  sGs.textContent = d.goodStanding;
+  sNgs.textContent = d.notGoodStanding;
+  sTotal.textContent = d.totalScore;
+  sAvg.textContent = d.average;
+  sGrade.textContent = d.overallGrade;
+  cTeacherComment.textContent = d.classTeacherComment;
+  cPrincipalComment.textContent = d.principalComment;
+  cTeacherSig.textContent = d.student.classTeacherName && d.student.classTeacherName !== '—' ? d.student.classTeacherName : 'DURABON';
+}
+
+termSwitch.addEventListener('change', () => loadResult(termSwitch.value));
+printBtn.addEventListener('click', () => window.print());
+
+downloadBtn.addEventListener('click', async () => {
+  downloadBtn.textContent = 'Preparing PDF…';
+  try {
+    const canvas = await html2canvas(sheet, { scale: 2, useCORS: true });
+    const { jsPDF } = window.jspdf;
+    const pdf = new jsPDF('p', 'pt', 'a4');
+    const pageWidth = pdf.internal.pageSize.getWidth();
+    const imgHeight = (canvas.height * pageWidth) / canvas.width;
+    pdf.addImage(canvas.toDataURL('image/png'), 'PNG', 0, 0, pageWidth, imgHeight);
+    pdf.save(`${student.studentId}-${termSwitch.value.replace(/\s+/g, '-')}-result.pdf`);
+  } catch (e) {
+    alert('Could not generate the PDF: ' + e.message);
+  }
+  downloadBtn.textContent = 'Download as PDF';
+});
+
+loadResult(currentTerm);
+</script>
+</body>
+</html>

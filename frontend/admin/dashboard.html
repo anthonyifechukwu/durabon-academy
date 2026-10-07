@@ -1,0 +1,70 @@
+<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Admin Dashboard | DURABON</title>
+<link rel="stylesheet" href="../css/styles.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/aos/2.3.4/aos.css">
+<link rel="stylesheet" href="../css/enhance.css">
+</head>
+<body><main class="section"><p class="kicker">ADMIN DASHBOARD</p><h1>DURABON Results Management</h1>
+
+<label style="display:flex;flex-direction:column;gap:6px;font-size:12.5px;font-weight:600;max-width:220px;margin-top:20px">Filter by class
+  <select id="classFilter" style="padding:10px 13px;border-radius:10px;border:1px solid var(--line)"></select>
+</label>
+
+<p class="kicker" style="margin-top:24px" id="studentsLabel">Students</p>
+<div class="cards four">
+  <article class="tilt" data-aos="fade-up"><b>Total</b><h3 id="students">—</h3></article>
+  <article class="tilt" data-aos="fade-up" data-aos-delay="60"><b style="color:#1c7a3c">Active</b><h3 id="studentsActive" style="color:#1c7a3c">—</h3></article>
+  <article class="tilt" data-aos="fade-up" data-aos-delay="120"><b style="color:#b3311c">Suspended</b><h3 id="studentsSuspended" style="color:#b3311c">—</h3></article>
+  <article class="tilt" data-aos="fade-up" data-aos-delay="180"><b>Classes</b><h3 id="classes">—</h3></article>
+</div>
+
+<p class="kicker" style="margin-top:24px" id="teachersLabel">Teachers</p>
+<div class="cards four">
+  <article class="tilt" data-aos="fade-up"><b>Total</b><h3 id="teachers">—</h3></article>
+  <article class="tilt" data-aos="fade-up" data-aos-delay="60"><b style="color:#1c7a3c">Active</b><h3 id="teachersActive" style="color:#1c7a3c">—</h3></article>
+  <article class="tilt" data-aos="fade-up" data-aos-delay="120"><b style="color:#b3311c">Suspended</b><h3 id="teachersSuspended" style="color:#b3311c">—</h3></article>
+  <article class="tilt" data-aos="fade-up" data-aos-delay="180"><b>Portal Controls</b><h3><a href="portal.html">Open →</a></h3></article>
+</div>
+
+<section style="margin-top:30px" class="cards four">
+  <article class="tilt" data-aos="fade-up"><h3>Teachers</h3><p>Add, suspend or delete teacher accounts.</p><a class="btn gold" href="teachers.html">Manage</a> <a class="btn outline dark" href="assignments.html">Assignments</a></article>
+  <article class="tilt" data-aos="fade-up" data-aos-delay="140"><h3>Messages</h3><p>Send a note to one teacher or everyone at once.</p><a class="btn gold" href="messages.html">Compose</a></article>
+  <article class="tilt" data-aos="fade-up" data-aos-delay="60"><h3>Students</h3><p>Manage student IDs, classes and account status.</p><a class="btn gold" href="students.html">Manage</a></article>
+  <article class="tilt" data-aos="fade-up" data-aos-delay="120"><h3>Results</h3><p>Review submitted scores and final results.</p><a class="btn gold" href="results.html">Review</a></article>
+  <article class="tilt" data-aos="fade-up" data-aos-delay="180"><h3>Sessions & Terms</h3><p>Control result and teacher portals separately.</p><a class="btn gold" href="portal.html">Control</a></article>
+</section>
+</main>
+<script src="../js/config.js"></script>
+<script src="../js/admin-sidebar.js"></script>
+<script src="../js/classes.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/aos/2.3.4/aos.js"></script>
+<script src="../js/app.js"></script>
+<script>
+if (!localStorage.getItem('adminToken')) location.href = 'login.html';
+fillClassSelect(classFilter, true);
+classFilter.options[0].textContent = 'All classes';
+
+function render(studentList, teacherList) {
+  const cls = classFilter.value;
+  const stu = studentList.filter(s => !cls || s.className === cls);
+  const tch = teacherList.filter(t => !cls || (t.assignedClasses || []).some(a => a.className === cls) || (t.classTeacherOf || []).includes(cls));
+  studentsLabel.textContent = cls ? `Students — ${cls}` : 'Students';
+  teachersLabel.textContent = cls ? `Teachers — ${cls}` : 'Teachers';
+  students.textContent = stu.length;
+  studentsActive.textContent = stu.filter(s => s.status === 'active').length;
+  studentsSuspended.textContent = stu.filter(s => s.status === 'suspended').length;
+  teachers.textContent = tch.length;
+  teachersActive.textContent = tch.filter(t => t.status === 'active').length;
+  teachersSuspended.textContent = tch.filter(t => t.status === 'suspended').length;
+  classes.textContent = new Set(studentList.map(s => s.className)).size;
+}
+
+Promise.all([
+  Durabon.api('/admin/students', { tokenKey: 'adminToken' }),
+  Durabon.api('/admin/teachers', { tokenKey: 'adminToken' })
+]).then(([stu, tch]) => {
+  render(stu, tch);
+  classFilter.addEventListener('change', () => render(stu, tch));
+}).catch(() => location.href = 'login.html');
+</script>
+<script>mountAdminSidebar('dashboard.html');</script>
+</body></html>
